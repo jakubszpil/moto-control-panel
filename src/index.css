@@ -36,11 +36,18 @@ table tbody tr:hover {
 }
 
 @media screen and (max-width: 575px) {
-  button {
+  form button {
     width: 100%;
   }
 }
 
+table tr,
 .row-selected {
   transition: background 0.15s, color 0.15s;
+}
+
+.leaflet-popup-close-button {
+  margin-right: 8px;
+  margin-top: 8px;
+  font-size: 24px !important;
 }

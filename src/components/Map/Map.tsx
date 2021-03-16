@@ -1,8 +1,20 @@
 import { icon, LatLngExpression, Popup as LeafletPopup } from "leaflet";
 import { createContext, Ref, useContext, useEffect, useRef, useState } from "react";
-import { MapContainer, TileLayer, Marker, Popup, MapConsumer, PopupProps, useMap, useMapEvents } from "react-leaflet";
+import { Button } from "react-bootstrap";
+import {
+  MapContainer,
+  TileLayer,
+  Marker,
+  Popup,
+  MapConsumer,
+  PopupProps,
+  useMap,
+  useMapEvents,
+  Tooltip,
+} from "react-leaflet";
 import { useAppDispatch, useAppSelector } from "../../app/hooks";
 import { Device, selectDevice, unselectDevice } from "../../features/devmanager/devmanagerSlice";
+import getDistance from "../../lib/getDistance";
 
 const Icon = (level: number | undefined, type: string) => {
   let filename;
@@ -21,6 +33,11 @@ const MapContextProvider = mapContext.Provider;
 
 const MapMarker = (device: Device) => {
   const dispatch = useAppDispatch();
+  const selectedDevice = useAppSelector((state) => state.devmanager.device);
+  const userPosition = useAppSelector((state) => state.geolocalizer.coords) as {
+    lat: number;
+    lng: number;
+  };
   const [currentRefPopup, setCurrentRefPopup] = useContext(mapContext).ref;
   const ref = useRef(null);
   const map = useMap();
@@ -41,6 +58,23 @@ const MapMarker = (device: Device) => {
 
   return (
     <Marker eventHandlers={{ click: handleClick }} icon={Icon(device.BatteryLevel, device.Type)} position={position}>
+      {device.Id === selectedDevice?.Id && (
+        <Tooltip direction="bottom" offset={[1, 22]} opacity={1} permanent>
+          <span>
+            {getDistance(
+              {
+                lat: userPosition?.lat,
+                lng: userPosition?.lng,
+              },
+              {
+                lat: position[0],
+                lng: position[1],
+              }
+            )}{" "}
+            km
+          </span>
+        </Tooltip>
+      )}
       <Popup ref={ref}>
         <div className="card-body p-0">
           <h5 className="card-title">
@@ -89,6 +123,39 @@ const MapLocalizer = () => {
   return null;
 };
 
+const UserLocalizer = () => {
+  const map = useMap();
+  const dispatch = useAppDispatch();
+  const position = useAppSelector((state) => state.geolocalizer.coords) as {
+    lat: number;
+    lng: number;
+  };
+
+  const handleClick = () => {
+    dispatch(unselectDevice());
+
+    const latlng = Object.values(position) as any;
+
+    map.flyTo(latlng, map.getZoom());
+  };
+
+  return (
+    <Button onClick={handleClick} className="position-absolute mr-2 mb-4" style={{ zIndex: 9999, right: 0, bottom: 0 }}>
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width="16"
+        height="16"
+        fill="currentColor"
+        className="bi bi-cursor-fill mb-1 mr-2"
+        viewBox="0 0 16 16"
+      >
+        <path d="M14.082 2.182a.5.5 0 0 1 .103.557L8.528 15.467a.5.5 0 0 1-.917-.007L5.57 10.694.803 8.652a.5.5 0 0 1-.006-.916l12.728-5.657a.5.5 0 0 1 .556.103z" />
+      </svg>
+      Localize me
+    </Button>
+  );
+};
+
 export default () => {
   const devices = useAppSelector((state) => state.devmanager.devices);
   const position = useAppSelector((state) => state.geolocalizer.coords);
@@ -114,6 +181,7 @@ export default () => {
         <MapContextProvider value={{ ref: [currentRefPopup, setCurrentRefPopup] }}>
           {devices.length > 0 && devices.map((device) => <MapMarker key={device.Id} {...device} />)}
           <MapLocalizer />
+          <UserLocalizer />
         </MapContextProvider>
       </MapContainer>
     </div>
